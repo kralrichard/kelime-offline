@@ -327,46 +327,20 @@
   .btn.primary { background: var(--accent); color: #1a1408; border-color: var(--accent); }
   .btn.on { background: var(--good); border-color: var(--good); color: #fff; }
 
-  /* ---------- quiz ---------- */
-  #quiz { display: none; padding: 0 18px; }
-  #quiz.show { display: block; }
-
-  .qlabel {
-    text-align: center;
-    font-size: 12.5px;
+  /* Seviye şeridindeki grup başlığı: banka bölümlerinin başladığını ve
+     toplam kelime sayısını, kaydırmadan da belli eder. */
+  .group {
+    flex: none;
+    align-self: center;
+    padding: 0 4px 0 8px;
+    font-size: 11px;
     font-weight: 800;
-    letter-spacing: .16em;
+    letter-spacing: .1em;
     text-transform: uppercase;
     color: var(--accent);
-    margin-top: 8px;
+    white-space: nowrap;
+    opacity: .85;
   }
-
-  #quiz h2 {
-    font-family: Georgia, serif;
-    font-size: clamp(30px, 9vw, 40px);
-    text-align: center;
-    margin: 8px 0 2px;
-    overflow-wrap: anywhere;
-  }
-
-  #quiz .sub { text-align: center; color: var(--ink-dim); font-size: 14px; margin: 0; }
-
-  .opts { display: grid; gap: 10px; margin-top: 22px; }
-
-  .opt {
-    padding: 14px 16px;
-    border-radius: 14px;
-    border: 1.5px solid var(--line);
-    background: rgba(255, 255, 255, .07);
-    color: var(--ink);
-    font: inherit;
-    font-size: 15.5px;
-    font-weight: 600;
-    text-align: left;
-    cursor: pointer;
-  }
-  .opt.right { background: var(--good); border-color: var(--good); color: #fff; }
-  .opt.wrong { background: var(--bad); border-color: var(--bad); color: #fff; }
 
   /* ---------- bildirim ---------- */
   #toast {
@@ -421,8 +395,6 @@
 
   <main id="card" aria-live="polite"></main>
 
-  <div id="quiz"></div>
-
   <footer id="actions"></footer>
 </div>
 
@@ -430,7 +402,7 @@
 
 <!-- Sürüm etiketi: dosyaları güncelledikten sonra bu sayıyı artır, yoksa
      tarayıcılar eski sürümü önbellekten çalıştırmaya devam eder. -->
-<script src="data.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="data.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

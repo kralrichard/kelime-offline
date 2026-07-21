@@ -1,8 +1,12 @@
 # Kelime
 
 İngilizce kelime pratiği için küçük bir web uygulaması. Kartları yukarı
-kaydırırsın: her kartta kelimenin okunuşu, Türkçe karşılığı ve bir örnek cümle
-çevirisiyle birlikte gelir. Beş kartta bir hızlı soru sorulur.
+kaydırırsın: her kartta kelimenin okunuşu ve Türkçe karşılığı gelir, seçme
+kartlarda ayrıca çevirisiyle birlikte bir örnek cümle bulunur.
+
+Bir kelimeyi öğrendiysen **Biliyorum**, öğrenmediysen **Anlamadım** dersin —
+anlamadıkların birkaç kart sonra tekrar karşına çıkar. Üst üste bildiğin her
+kelime seriyi büyütür ve daha çok puan getirir.
 
 **Canlı:** https://kralrichard.github.io/kelime-offline/
 
@@ -37,7 +41,7 @@ bölümüne geçtiğinde indirilir. Sonrasında tarayıcı önbelleğinden gelir
 | `index.html` | Sayfa iskeleti ve stiller |
 | `data.js` | Seçme kartlar (elle yazıldı) |
 | `bank.js` | 20.000 kelimelik banka (üretildi) |
-| `app.js` | Deste, kaydırma, seslendirme, puan ve sorular |
+| `app.js` | Deste, kaydırma, seslendirme ve puan |
 
 ## Telefonda kullanma
 

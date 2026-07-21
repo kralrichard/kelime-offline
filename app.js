@@ -9,7 +9,6 @@
   "use strict";
 
   var XP_PER_LEVEL = 200;
-  var QUIZ_EVERY = 5;      // kaç kartta bir hızlı soru
   var RETRY_GAP = 7;       // "anlamadım" denen kelime kaç kart sonra geri gelsin
   var SWIPE_MIN = 55;      // parmak hareketi kaç piksel olunca kaydırma sayılsın
 
@@ -72,7 +71,7 @@
     bankLoading = true;
 
     var s = document.createElement("script");
-    s.src = "bank.js?v=3";
+    s.src = "bank.js?v=4";
     s.onload = function () {
       bankLoading = false;
       try { parseBank(); done(true); }
@@ -116,10 +115,6 @@
     best: load("best", 0),
     streak: 0,
     known: new Set(load("known", [])),
-    seen: [],          // quiz havuzu: {w, tr}
-    sinceQuiz: 0,
-    quiz: null,
-    busy: false,
   };
 
   if (S.level !== "all" && !LEVELS[S.level] && !isBand(S.level)) S.level = "all";
@@ -198,9 +193,6 @@
   function buildDeck() {
     S.deck = shuffle(pool());
     S.idx = 0;
-    S.seen = [];
-    S.sinceQuiz = 0;
-    S.quiz = null;
   }
 
   function current() {
@@ -209,24 +201,30 @@
 
   /* ---------------- çizim ---------------- */
 
-  function renderLevels() {
-    var box = $("levels");
-    var items = [{ id: "all", label: "Seçme", n: ALL.length }].concat(
-      Object.keys(LEVELS).map(function (k) {
-        return { id: k, label: LEVELS[k].label, n: BY_LEVEL[k].length };
-      }),
-      BANDS.map(function (b) {
-        return { id: b.id, label: b.label, n: b.to - b.from };
-      })
+  function chip(id, label, n) {
+    return (
+      '<button class="chip" data-level="' + id + '" aria-pressed="' +
+      (S.level === id) + '">' + esc(label) + " · " + n + "</button>"
     );
-    box.innerHTML = items
-      .map(function (it) {
-        return (
-          '<button class="chip" data-level="' + it.id + '" aria-pressed="' +
-          (S.level === it.id) + '">' + esc(it.label) + " · " + it.n + "</button>"
-        );
-      })
-      .join("");
+  }
+
+  function renderLevels() {
+    var bankTotal = BANDS[BANDS.length - 1].to;
+
+    var html = chip("all", "Seçme", ALL.length);
+    Object.keys(LEVELS).forEach(function (k) {
+      html += chip(k, LEVELS[k].label, BY_LEVEL[k].length);
+    });
+
+    // Banka bölümleri yatay şeritte sağda kalıyor; başlık hem oradan devam
+    // ettiğini hem de toplamın kaç kelime olduğunu söyler.
+    html += '<span class="group">▸ Banka · ' +
+            bankTotal.toLocaleString("tr-TR") + " kelime</span>";
+    BANDS.forEach(function (b) {
+      html += chip(b.id, b.label, b.to - b.from);
+    });
+
+    $("levels").innerHTML = html;
   }
 
   function renderStats() {
@@ -260,10 +258,6 @@
     var c = current();
     var card = $("card");
     var actions = $("actions");
-
-    $("quiz").classList.remove("show");
-    card.style.display = "";
-    actions.style.display = "";
 
     if (!c) {
       card.innerHTML =
@@ -328,64 +322,7 @@
     }
     card.scrollTop = 0;
 
-    // Kelimeyi bir kez seslendir ve quiz havuzuna ekle.
     speak(c.w);
-    if (!S.seen.some(function (s) { return s.w === c.w; })) {
-      S.seen.push({ w: c.w, tr: c.tr });
-    }
-  }
-
-  /* ---------------- quiz ---------------- */
-
-  function startQuiz() {
-    var picks = shuffle(S.seen).slice(0, 4);
-    var answer = picks[Math.floor(Math.random() * picks.length)];
-    S.quiz = { word: answer.w, answer: answer.tr, options: shuffle(picks.map(function (p) { return p.tr; })), done: false };
-
-    $("card").style.display = "none";
-    $("actions").style.display = "none";
-    var q = $("quiz");
-    q.classList.add("show");
-    q.innerHTML =
-      '<p class="qlabel">⚡ Hızlı soru</p>' +
-      "<h2>" + esc(S.quiz.word) + "</h2>" +
-      '<p class="sub">ne demek?</p>' +
-      '<div class="opts">' +
-        S.quiz.options.map(function (o, i) {
-          return '<button class="opt" data-act="answer" data-i="' + i + '">' + esc(o) + "</button>";
-        }).join("") +
-      "</div>";
-  }
-
-  function answerQuiz(i) {
-    if (!S.quiz || S.quiz.done) return;
-    S.quiz.done = true;
-
-    var chosen = S.quiz.options[i];
-    var correct = chosen === S.quiz.answer;
-    var btns = $("quiz").querySelectorAll(".opt");
-
-    for (var k = 0; k < btns.length; k++) {
-      if (S.quiz.options[k] === S.quiz.answer) btns[k].classList.add("right");
-      else if (k === i) btns[k].classList.add("wrong");
-    }
-
-    if (correct) {
-      S.streak += 1;
-      if (S.streak > S.best) { S.best = S.streak; save("best", S.best); }
-      var gain = 25 + S.streak * 5;
-      S.xp += gain; save("xp", S.xp);
-      toast("🔥 Doğru! +" + gain + " XP");
-    } else {
-      S.streak = 0;
-      toast("😅 Seri sıfırlandı");
-    }
-    renderStats();
-
-    setTimeout(function () {
-      S.quiz = null;
-      advance(1);
-    }, 1300);
   }
 
   /* ---------------- gezinme ---------------- */
@@ -393,7 +330,6 @@
   var lastNav = 0;
 
   function advance(dir) {
-    if (S.quiz && !S.quiz.done) return;      // soru bekliyorsa kaydırma
     var now = Date.now();
     if (now - lastNav < 260) return;          // aşırı hızlı tetiklenmeyi engelle
     lastNav = now;
@@ -401,12 +337,6 @@
     if (dir > 0) {
       if (S.idx >= S.deck.length) return;
       S.idx += 1;
-      S.sinceQuiz += 1;
-      if (S.sinceQuiz >= QUIZ_EVERY && S.seen.length >= 4 && S.idx < S.deck.length) {
-        S.sinceQuiz = 0;
-        startQuiz();
-        return;
-      }
     } else {
       if (S.idx === 0) return;
       S.idx -= 1;
@@ -416,15 +346,19 @@
 
   /* ---------------- eylemler ---------------- */
 
+  // Seri = üst üste kaç kelimeye "Biliyorum" dendiği. "Anlamadım" sıfırlar.
   function markKnown() {
     var c = current();
     if (!c) return;
     if (S.known.has(c.w)) {
-      S.known.delete(c.w);
+      S.known.delete(c.w);          // geri al
     } else {
       S.known.add(c.w);
-      S.xp += 10; save("xp", S.xp);
-      toast("✓ +10 XP");
+      S.streak += 1;
+      if (S.streak > S.best) { S.best = S.streak; save("best", S.best); }
+      var gain = 10 + Math.min(S.streak, 10) * 2;
+      S.xp += gain; save("xp", S.xp);
+      toast((S.streak > 2 ? "🔥 " + S.streak + " seri · " : "✓ ") + "+" + gain + " XP");
     }
     save("known", Array.from(S.known));
     renderStats();
@@ -440,13 +374,15 @@
       S.known.delete(c.w);
       save("known", Array.from(S.known));
     }
+    S.streak = 0;
+    renderStats();
     var target = Math.min(S.idx + RETRY_GAP, S.deck.length);
     S.deck.splice(target, 0, c);
     toast("↻ Birazdan tekrar");
     advance(1);
   }
 
-  function onAction(act, el) {
+  function onAction(act) {
     var c = current();
     switch (act) {
       case "speak":    if (c) speak(c.w); break;
@@ -457,7 +393,6 @@
       case "next":     advance(1); break;
       case "restart":  buildDeck(); renderCard(1); break;
       case "reload-bank": switchLevel(S.level); break;
-      case "answer":   answerQuiz(Number(el.getAttribute("data-i"))); break;
     }
   }
 
@@ -475,7 +410,6 @@
     }
 
     // Banka ilk kez açılıyor: indirilirken kullanıcıyı bilgilendir.
-    $("quiz").classList.remove("show");
     $("actions").innerHTML = "";
     $("card").innerHTML =
       '<div class="inner"><p class="loading">Kelime bankası yükleniyor…<br>' +
@@ -499,7 +433,7 @@
     var chip = e.target.closest("[data-level]");
     if (chip) { switchLevel(chip.getAttribute("data-level")); return; }
     var btn = e.target.closest("[data-act]");
-    if (btn) onAction(btn.getAttribute("data-act"), btn);
+    if (btn) onAction(btn.getAttribute("data-act"));
   });
 
   // Dikey kaydırma. Kart içeriği taşıyorsa önce onu kaydırmaya izin ver.
