@@ -26,11 +26,12 @@
       });
   }
 
-  var BY_LEVEL = {};
-  var ALL = [];
+  // Elle yazılmış 284 kart artık ayrı bir bölüm değil: banka kelimeleri için
+  // zenginleştirme katmanı. Bir kelimenin burada karşılığı varsa okunuşu ve
+  // örnek cümlesi karta eklenir.
+  var CURATED = {};
   Object.keys(LEVELS).forEach(function (k) {
-    BY_LEVEL[k] = parseLevel(k);
-    ALL = ALL.concat(BY_LEVEL[k]);
+    parseLevel(k).forEach(function (e) { CURATED[e.w.toLowerCase()] = e; });
   });
 
   /* ---------------- kelime bankası ---------------- */
@@ -71,7 +72,7 @@
     bankLoading = true;
 
     var s = document.createElement("script");
-    s.src = "bank.js?v=4";
+    s.src = "bank.js?v=5";
     s.onload = function () {
       bankLoading = false;
       try { parseBank(); done(true); }
@@ -108,7 +109,7 @@
   }
 
   var S = {
-    level: load("level", "all"),
+    level: load("level", BANDS[0].id),
     idx: 0,
     deck: [],
     xp: load("xp", 0),
@@ -117,7 +118,8 @@
     known: new Set(load("known", [])),
   };
 
-  if (S.level !== "all" && !LEVELS[S.level] && !isBand(S.level)) S.level = "all";
+  // Eski sürümden kalan seviye adları ("all", "a1"…) artık yok.
+  if (!isBand(S.level)) S.level = BANDS[0].id;
 
   /* ---------------- yardımcılar ---------------- */
 
@@ -131,9 +133,7 @@
   }
 
   function pool() {
-    if (S.level === "all") return ALL;
-    if (isBand(S.level)) return bandWords(S.level);
-    return BY_LEVEL[S.level] || ALL;
+    return bandWords(isBand(S.level) ? S.level : BANDS[0].id);
   }
 
   var $ = function (id) { return document.getElementById(id); };
@@ -201,30 +201,13 @@
 
   /* ---------------- çizim ---------------- */
 
-  function chip(id, label, n) {
-    return (
-      '<button class="chip" data-level="' + id + '" aria-pressed="' +
-      (S.level === id) + '">' + esc(label) + " · " + n + "</button>"
-    );
-  }
-
   function renderLevels() {
-    var bankTotal = BANDS[BANDS.length - 1].to;
-
-    var html = chip("all", "Seçme", ALL.length);
-    Object.keys(LEVELS).forEach(function (k) {
-      html += chip(k, LEVELS[k].label, BY_LEVEL[k].length);
-    });
-
-    // Banka bölümleri yatay şeritte sağda kalıyor; başlık hem oradan devam
-    // ettiğini hem de toplamın kaç kelime olduğunu söyler.
-    html += '<span class="group">▸ Banka · ' +
-            bankTotal.toLocaleString("tr-TR") + " kelime</span>";
-    BANDS.forEach(function (b) {
-      html += chip(b.id, b.label, b.to - b.from);
-    });
-
-    $("levels").innerHTML = html;
+    $("levels").innerHTML = BANDS.map(function (b) {
+      return (
+        '<button class="chip" data-level="' + b.id + '" aria-pressed="' +
+        (S.level === b.id) + '">' + esc(b.label) + "</button>"
+      );
+    }).join("");
   }
 
   function renderStats() {
@@ -276,34 +259,34 @@
 
     var isKnown = S.known.has(c.w);
 
-    var label = c.bank ? bandLabel() : LEVELS[c.level].label;
+    // Elle yazılmış kart varsa onun okunuşu, anlamı ve örnek cümlesi
+    // sözlükten gelene tercih edilir.
+    var rich = CURATED[c.w.toLowerCase()];
 
-    // Okunuş satırı yalnızca seçme kartlarda var; banka kelimelerinde yerine
-    // aşağıdaki gerçek-telaffuz bağlantıları iş görüyor.
-    var ipaRow = c.ipa
-      ? '<p class="ipa">/' + esc(c.ipa) + "/" +
+    var ipaRow = rich
+      ? '<p class="ipa">/' + esc(rich.ipa) + "/" +
         '<button class="slow" data-act="slow">🐢 yavaş</button></p>'
       : '<p class="ipa"><button class="slow" data-act="slow">🐢 yavaş dinle</button>' +
         (c.type ? '<span class="type">' + esc(c.type) + "</span>" : "") + "</p>";
 
-    var example = c.en
+    var example = rich
       ? '<div class="example">' +
-          '<div class="en"><p>' + esc(c.en) + "</p>" +
+          '<div class="en"><p>' + esc(rich.en) + "</p>" +
             '<button class="mini" data-act="speak-ex" aria-label="Cümleyi dinle">🔊</button></div>' +
-          '<p class="tr">' + esc(c.trEx) + "</p>" +
+          '<p class="tr">' + esc(rich.trEx) + "</p>" +
         "</div>"
       : "";
 
     card.innerHTML =
       '<div class="inner">' +
         '<p class="count">' + (S.idx + 1) + " / " + S.deck.length +
-          " · " + esc(label) + "</p>" +
+          " · " + esc(bandLabel()) + "</p>" +
         '<div class="head">' +
           "<h1>" + esc(c.w) + "</h1>" +
           '<button class="speak" data-act="speak" aria-label="Kelimeyi dinle">🔊</button>' +
         "</div>" +
         ipaRow +
-        '<p class="meaning">' + esc(c.tr) + "</p>" +
+        '<p class="meaning">' + esc(rich ? rich.tr : c.tr) + "</p>" +
         example +
         links(c.w) +
         '<p class="hint">yukarı kaydır · sonraki kelime</p>' +
@@ -387,7 +370,10 @@
     switch (act) {
       case "speak":    if (c) speak(c.w); break;
       case "slow":     if (c) speak(c.w, 0.55); break;
-      case "speak-ex": if (c) speak(c.en); break;
+      case "speak-ex":
+        var r = c && CURATED[c.w.toLowerCase()];
+        if (r) speak(r.en);
+        break;
       case "known":    markKnown(); break;
       case "again":    markAgain(); break;
       case "next":     advance(1); break;
@@ -480,12 +466,5 @@
 
   renderLevels();
   renderStats();
-
-  if (isBand(S.level)) {
-    // Son oturumda banka bölümündeydi: aynı yerden devam et.
-    switchLevel(S.level);
-  } else {
-    buildDeck();
-    renderCard(0);
-  }
+  switchLevel(S.level);
 })();
