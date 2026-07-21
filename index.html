@@ -259,6 +259,48 @@
     opacity: .8;
   }
 
+  /* Kelimeyi gerçek insanlardan dinlemek için dış kaynaklar. */
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .links a {
+    flex: 1 1 auto;
+    text-align: center;
+    padding: 11px 12px;
+    border-radius: 12px;
+    border: 1.5px solid var(--line);
+    background: rgba(0, 0, 0, .25);
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .links a:active { transform: scale(.98); }
+
+  .type {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-dim);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 1px 8px;
+    vertical-align: middle;
+  }
+
+  .loading {
+    text-align: center;
+    color: var(--ink-dim);
+    font-size: 14px;
+    padding: 40px 0;
+  }
+
   /* ---------- alt eylemler ---------- */
   footer {
     flex: none;
@@ -388,7 +430,7 @@
 
 <!-- Sürüm etiketi: dosyaları güncelledikten sonra bu sayıyı artır, yoksa
      tarayıcılar eski sürümü önbellekten çalıştırmaya devam eder. -->
-<script src="data.js?v=2"></script>
-<script src="app.js?v=2"></script>
+<script src="data.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

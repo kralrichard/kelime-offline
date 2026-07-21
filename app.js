@@ -34,6 +34,59 @@
     ALL = ALL.concat(BY_LEVEL[k]);
   });
 
+  /* ---------------- kelime bankası ---------------- */
+
+  // 20.000 kelime, konuşma dilindeki kullanım sıklığına göre sıralı. Dosya
+  // ~800 KB olduğu için sayfa açılışında değil, kullanıcı bir banka bölümüne
+  // geçtiğinde indirilir; sonrasında tarayıcı önbelleğinden gelir.
+  var BANDS = [
+    { id: "b1",  label: "İlk 1000",  from: 0,     to: 1000 },
+    { id: "b3",  label: "1–3 bin",   from: 1000,  to: 3000 },
+    { id: "b6",  label: "3–6 bin",   from: 3000,  to: 6000 },
+    { id: "b10", label: "6–10 bin",  from: 6000,  to: 10000 },
+    { id: "b20", label: "10–20 bin", from: 10000, to: 20000 },
+  ];
+
+  var bankRows = null;      // yüklendiğinde dolar
+  var bankLoading = false;
+
+  function isBand(id) {
+    return BANDS.some(function (b) { return b.id === id; });
+  }
+
+  function parseBank() {
+    bankRows = BANK.split("\n")
+      .map(function (l) { return l.trim(); })
+      .filter(Boolean)
+      .map(function (l) {
+        var p = l.split("|");
+        return { w: p[0], type: p[1], tr: p[2], bank: true };
+      });
+  }
+
+  // bank.js'i bir kez indirir. Hata olursa kullanıcıya söyler, uygulama
+  // seçme kartlarla çalışmaya devam eder.
+  function loadBank(done) {
+    if (bankRows) { done(true); return; }
+    if (bankLoading) return;
+    bankLoading = true;
+
+    var s = document.createElement("script");
+    s.src = "bank.js?v=3";
+    s.onload = function () {
+      bankLoading = false;
+      try { parseBank(); done(true); }
+      catch (e) { done(false); }
+    };
+    s.onerror = function () { bankLoading = false; done(false); };
+    document.head.appendChild(s);
+  }
+
+  function bandWords(id) {
+    var b = BANDS.filter(function (x) { return x.id === id; })[0];
+    return bankRows ? bankRows.slice(b.from, b.to) : [];
+  }
+
   /* ---------------- kalıcı durum ---------------- */
 
   var KEY = "kelime:";
@@ -69,7 +122,7 @@
     busy: false,
   };
 
-  if (!LEVELS[S.level]) S.level = "all";
+  if (S.level !== "all" && !LEVELS[S.level] && !isBand(S.level)) S.level = "all";
 
   /* ---------------- yardımcılar ---------------- */
 
@@ -83,7 +136,9 @@
   }
 
   function pool() {
-    return S.level === "all" ? ALL : BY_LEVEL[S.level];
+    if (S.level === "all") return ALL;
+    if (isBand(S.level)) return bandWords(S.level);
+    return BY_LEVEL[S.level] || ALL;
   }
 
   var $ = function (id) { return document.getElementById(id); };
@@ -156,15 +211,19 @@
 
   function renderLevels() {
     var box = $("levels");
-    var items = [{ id: "all", label: "Hepsi" }].concat(
-      Object.keys(LEVELS).map(function (k) { return { id: k, label: LEVELS[k].label }; })
+    var items = [{ id: "all", label: "Seçme", n: ALL.length }].concat(
+      Object.keys(LEVELS).map(function (k) {
+        return { id: k, label: LEVELS[k].label, n: BY_LEVEL[k].length };
+      }),
+      BANDS.map(function (b) {
+        return { id: b.id, label: b.label, n: b.to - b.from };
+      })
     );
     box.innerHTML = items
       .map(function (it) {
-        var n = it.id === "all" ? ALL.length : BY_LEVEL[it.id].length;
         return (
           '<button class="chip" data-level="' + it.id + '" aria-pressed="' +
-          (S.level === it.id) + '">' + esc(it.label) + " · " + n + "</button>"
+          (S.level === it.id) + '">' + esc(it.label) + " · " + it.n + "</button>"
         );
       })
       .join("");
@@ -177,6 +236,24 @@
     $("xpbar").style.width = pct + "%";
     $("xp").textContent = S.xp + " XP";
     $("streak").textContent = "🔥 " + S.streak + (S.best ? " / " + S.best : "");
+  }
+
+  function bandLabel() {
+    var b = BANDS.filter(function (x) { return x.id === S.level; })[0];
+    return b ? b.label : "Kelime bankası";
+  }
+
+  // Kelimeyi gerçek insanlardan dinlemek için dış bağlantılar. Hepsi kelimeden
+  // türetiliyor, yani 20.000 kelimenin tamamı için ek veri gerekmeden çalışır.
+  function links(word) {
+    var q = encodeURIComponent(word);
+    return (
+      '<div class="links">' +
+        '<a href="https://youglish.com/pronounce/' + q + '/english" target="_blank" rel="noopener noreferrer">🎥 Videolarda duy</a>' +
+        '<a href="https://forvo.com/word/' + q + '/#en" target="_blank" rel="noopener noreferrer">🗣️ Forvo</a>' +
+        '<a href="https://playphrase.me/#/search?q=' + q + '" target="_blank" rel="noopener noreferrer">🎬 Film sahneleri</a>' +
+      "</div>"
+    );
   }
 
   function renderCard(dir) {
@@ -205,22 +282,36 @@
 
     var isKnown = S.known.has(c.w);
 
+    var label = c.bank ? bandLabel() : LEVELS[c.level].label;
+
+    // Okunuş satırı yalnızca seçme kartlarda var; banka kelimelerinde yerine
+    // aşağıdaki gerçek-telaffuz bağlantıları iş görüyor.
+    var ipaRow = c.ipa
+      ? '<p class="ipa">/' + esc(c.ipa) + "/" +
+        '<button class="slow" data-act="slow">🐢 yavaş</button></p>'
+      : '<p class="ipa"><button class="slow" data-act="slow">🐢 yavaş dinle</button>' +
+        (c.type ? '<span class="type">' + esc(c.type) + "</span>" : "") + "</p>";
+
+    var example = c.en
+      ? '<div class="example">' +
+          '<div class="en"><p>' + esc(c.en) + "</p>" +
+            '<button class="mini" data-act="speak-ex" aria-label="Cümleyi dinle">🔊</button></div>' +
+          '<p class="tr">' + esc(c.trEx) + "</p>" +
+        "</div>"
+      : "";
+
     card.innerHTML =
       '<div class="inner">' +
         '<p class="count">' + (S.idx + 1) + " / " + S.deck.length +
-          " · " + esc(LEVELS[c.level].label) + "</p>" +
+          " · " + esc(label) + "</p>" +
         '<div class="head">' +
           "<h1>" + esc(c.w) + "</h1>" +
           '<button class="speak" data-act="speak" aria-label="Kelimeyi dinle">🔊</button>' +
         "</div>" +
-        '<p class="ipa">/' + esc(c.ipa) + "/" +
-          '<button class="slow" data-act="slow">🐢 yavaş</button></p>' +
+        ipaRow +
         '<p class="meaning">' + esc(c.tr) + "</p>" +
-        '<div class="example">' +
-          '<div class="en"><p>' + esc(c.en) + "</p>" +
-            '<button class="mini" data-act="speak-ex" aria-label="Cümleyi dinle">🔊</button></div>' +
-          '<p class="tr">' + esc(c.trEx) + "</p>" +
-        "</div>" +
+        example +
+        links(c.w) +
         '<p class="hint">yukarı kaydır · sonraki kelime</p>' +
       "</div>";
 
@@ -365,22 +456,48 @@
       case "again":    markAgain(); break;
       case "next":     advance(1); break;
       case "restart":  buildDeck(); renderCard(1); break;
+      case "reload-bank": switchLevel(S.level); break;
       case "answer":   answerQuiz(Number(el.getAttribute("data-i"))); break;
     }
   }
 
   /* ---------------- olaylar ---------------- */
 
-  document.addEventListener("click", function (e) {
-    var chip = e.target.closest("[data-level]");
-    if (chip) {
-      S.level = chip.getAttribute("data-level");
-      save("level", S.level);
-      renderLevels();
+  function switchLevel(id) {
+    S.level = id;
+    save("level", id);
+    renderLevels();
+
+    if (!isBand(id) || bankRows) {
       buildDeck();
       renderCard(1);
       return;
     }
+
+    // Banka ilk kez açılıyor: indirilirken kullanıcıyı bilgilendir.
+    $("quiz").classList.remove("show");
+    $("actions").innerHTML = "";
+    $("card").innerHTML =
+      '<div class="inner"><p class="loading">Kelime bankası yükleniyor…<br>' +
+      "<span style=\"opacity:.7\">20.000 kelime, yalnızca ilk seferde</span></p></div>";
+
+    loadBank(function (ok) {
+      if (!ok) {
+        $("card").innerHTML =
+          '<div class="inner"><p class="loading">Kelime bankası yüklenemedi.<br>' +
+          "<span style=\"opacity:.7\">Bağlantını kontrol edip tekrar dene.</span></p></div>";
+        $("actions").innerHTML =
+          '<button class="btn primary" data-act="reload-bank">Tekrar dene</button>';
+        return;
+      }
+      buildDeck();
+      renderCard(1);
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    var chip = e.target.closest("[data-level]");
+    if (chip) { switchLevel(chip.getAttribute("data-level")); return; }
     var btn = e.target.closest("[data-act]");
     if (btn) onAction(btn.getAttribute("data-act"), btn);
   });
@@ -429,6 +546,12 @@
 
   renderLevels();
   renderStats();
-  buildDeck();
-  renderCard(0);
+
+  if (isBand(S.level)) {
+    // Son oturumda banka bölümündeydi: aynı yerden devam et.
+    switchLevel(S.level);
+  } else {
+    buildDeck();
+    renderCard(0);
+  }
 })();
