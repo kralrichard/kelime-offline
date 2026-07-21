@@ -41,6 +41,10 @@ kelime|okunuş|Türkçe anlamlar|İngilizce örnek cümle|Türkçe çevirisi
 değiştirmen gerekmez. Yeni bir seviye açmak için `LEVELS` nesnesine
 `label` ve `words` alanları olan bir giriş ekle.
 
+> **Değişiklikten sonra:** `index.html` içindeki script etiketlerinde geçen
+> `?v=2` sayısını artır. Tarayıcılar `.js` dosyalarını önbelleğe aldığı için,
+> bu sayı değişmezse kullanıcılarda eski sürüm çalışmaya devam eder.
+
 ## Klavye
 
 | Tuş | Ne yapar |
