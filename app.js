@@ -190,9 +190,11 @@
 
     if (!c) {
       card.innerHTML =
-        '<p class="count">bitti</p>' +
-        "<h1>Deste tamamlandı</h1>" +
-        '<p class="meaning">' + S.deck.length + " kelimeyi gözden geçirdin.</p>";
+        '<div class="inner">' +
+          '<p class="count">bitti</p>' +
+          "<h1>Deste tamamlandı</h1>" +
+          '<p class="meaning">' + S.deck.length + " kelimeyi gözden geçirdin.</p>" +
+        "</div>";
       actions.innerHTML =
         '<button class="btn primary" data-act="restart">Yeniden karıştır</button>';
       return;
@@ -204,26 +206,28 @@
     var isKnown = S.known.has(c.w);
 
     card.innerHTML =
-      '<p class="count">' + (S.idx + 1) + " / " + S.deck.length +
-        " · " + esc(LEVELS[c.level].label) + "</p>" +
-      '<div class="head">' +
-        "<h1>" + esc(c.w) + "</h1>" +
-        '<button class="speak" data-act="speak" aria-label="Kelimeyi dinle">🔊</button>' +
-      "</div>" +
-      '<p class="ipa">/' + esc(c.ipa) + "/" +
-        '<button class="slow" data-act="slow">🐢 yavaş</button></p>' +
-      '<p class="meaning">' + esc(c.tr) + "</p>" +
-      '<div class="example">' +
-        '<div class="en"><p>' + esc(c.en) + "</p>" +
-          '<button class="mini" data-act="speak-ex" aria-label="Cümleyi dinle">🔊</button></div>' +
-        '<p class="tr">' + esc(c.trEx) + "</p>" +
-      "</div>" +
-      '<p class="hint">yukarı kaydır · sonraki kelime</p>';
+      '<div class="inner">' +
+        '<p class="count">' + (S.idx + 1) + " / " + S.deck.length +
+          " · " + esc(LEVELS[c.level].label) + "</p>" +
+        '<div class="head">' +
+          "<h1>" + esc(c.w) + "</h1>" +
+          '<button class="speak" data-act="speak" aria-label="Kelimeyi dinle">🔊</button>' +
+        "</div>" +
+        '<p class="ipa">/' + esc(c.ipa) + "/" +
+          '<button class="slow" data-act="slow">🐢 yavaş</button></p>' +
+        '<p class="meaning">' + esc(c.tr) + "</p>" +
+        '<div class="example">' +
+          '<div class="en"><p>' + esc(c.en) + "</p>" +
+            '<button class="mini" data-act="speak-ex" aria-label="Cümleyi dinle">🔊</button></div>' +
+          '<p class="tr">' + esc(c.trEx) + "</p>" +
+        "</div>" +
+        '<p class="hint">yukarı kaydır · sonraki kelime</p>' +
+      "</div>";
 
     actions.innerHTML =
       '<button class="btn" data-act="again">Anlamadım</button>' +
       '<button class="btn ' + (isKnown ? "on" : "") + '" data-act="known">' +
-        (isKnown ? "✓ Biliyorum" : "Biliyorum +10") + "</button>" +
+        (isKnown ? "✓ Biliyorum" : "Biliyorum") + "</button>" +
       '<button class="btn primary" data-act="next">Sonraki ↑</button>';
 
     card.classList.remove("anim-up", "anim-down");
